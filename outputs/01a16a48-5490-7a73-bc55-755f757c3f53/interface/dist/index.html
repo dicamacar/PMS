@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interfaz local para revisar citas por fecha de registro y usuario registrador.">
+  <title>Agendamiento de citas · Interfaz local</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19324b;
+      --muted: #66788a;
+      --line: #e1e8ef;
+      --paper: #ffffff;
+      --canvas: #f4f7fa;
+      --blue: #285d91;
+      --blue-soft: #e8f0f8;
+      --teal: #2f8790;
+      --green: #388779;
+      --amber: #d39b42;
+      --red: #d16e65;
+      --purple: #8271a7;
+      --shadow: 0 8px 28px rgba(21, 48, 73, .055);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 14px/1.5 "Segoe UI", Arial, sans-serif; }
+    .shell { max-width: 1440px; margin: 0 auto; padding: 28px 34px 40px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 22px; }
+    .eyebrow { margin: 0 0 5px; color: var(--blue); font-size: 11px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(25px, 3vw, 34px); line-height: 1.18; letter-spacing: -.035em; font-weight: 700; }
+    .lede { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+    .local-badge { flex: 0 0 auto; padding: 7px 11px; border: 1px solid #cfe1df; border-radius: 999px; color: #28756f; background: #eff8f6; font-size: 12px; font-weight: 650; }
+    .local-badge::before { content: ""; display: inline-block; width: 7px; height: 7px; margin: 0 7px 1px 0; border-radius: 50%; background: #45a397; }
+    .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .filters { display: grid; grid-template-columns: 1.1fr 1.1fr 1.4fr 1.5fr 1.3fr auto; align-items: end; gap: 13px; padding: 16px 18px; margin-bottom: 17px; }
+    .filter label { display: block; margin: 0 0 5px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    select, input { width: 100%; height: 38px; padding: 0 10px; border: 1px solid #d7e0e8; border-radius: 8px; background: #fff; color: var(--ink); font: inherit; outline: none; }
+    select:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid rgba(40, 93, 145, .22); outline-offset: 1px; }
+    button { height: 38px; padding: 0 13px; border: 1px solid #d7e0e8; border-radius: 8px; background: #fff; color: var(--blue); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+    button:hover { background: var(--blue-soft); }
+    .filter-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 2px 12px; color: var(--muted); font-size: 12px; }
+    .filter-meta strong { color: var(--ink); font-weight: 650; }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+    .kpi { min-height: 116px; padding: 17px 18px; }
+    .kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 650; }
+    .kpi-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+    .kpi:nth-child(2) .kpi-dot { background: var(--green); }
+    .kpi:nth-child(3) .kpi-dot { background: var(--amber); }
+    .kpi:nth-child(4) .kpi-dot { background: var(--red); }
+    .kpi-value { margin-top: 9px; font-size: 29px; line-height: 1.1; font-weight: 730; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .kpi-caption { margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .grid.equal { grid-template-columns: 1fr 1fr; }
+    .chart-panel { min-width: 0; padding: 17px 19px 16px; }
+    .chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 7px; }
+    .chart-head h2, .quality h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+    .chart-subtitle { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .chart-total { color: var(--muted); font-size: 11px; white-space: nowrap; }
+    .bars { display: grid; gap: 12px; padding: 13px 0 2px; }
+    .bar-row { display: grid; grid-template-columns: minmax(94px, 1.1fr) minmax(90px, 3fr) 58px; align-items: center; gap: 10px; }
+    .bar-label { overflow: hidden; color: #40566b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 10px; overflow: hidden; border-radius: 10px; background: #edf1f5; }
+    .bar-fill { height: 100%; min-width: 2px; border-radius: inherit; background: var(--blue); transition: width .25s ease; }
+    .bar-number { color: var(--ink); font-size: 11px; font-weight: 680; text-align: right; font-variant-numeric: tabular-nums; }
+    .line-chart { display: block; width: 100%; height: 228px; overflow: visible; }
+    .line-grid { stroke: #e8edf2; stroke-width: 1; }
+    .line-axis { fill: #748394; font-size: 10px; }
+    .line-area { fill: rgba(47, 135, 144, .12); }
+    .line-path { fill: none; stroke: var(--teal); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .line-point { fill: #fff; stroke: var(--teal); stroke-width: 2.5; }
+    .quality { display: grid; grid-template-columns: minmax(180px, .8fr) 2fr; gap: 18px; align-items: center; padding: 15px 18px; margin: 1px 0 14px; border-color: #ecd9b8; background: #fffaf1; }
+    .quality h2 { color: #715327; }
+    .quality p { margin: 4px 0 0; color: #876b3c; font-size: 11px; }
+    .quality-metrics { display: flex; flex-wrap: wrap; gap: 8px; }
+    .quality-chip { padding: 7px 10px; border: 1px solid #f0e3ca; border-radius: 8px; background: rgba(255,255,255,.7); color: #67583e; font-size: 11px; }
+    .quality-chip strong { color: #4b402c; }
+    .details { margin: 15px 0; padding: 18px; }
+    .details-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; }
+    .details-head h2 { margin: 0; font-size: 16px; }
+    .details-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .detail-filters { display: grid; grid-template-columns: 1fr 1fr 1.5fr auto; align-items: end; gap: 12px; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #f9fbfd; }
+    .detail-count { margin: 12px 1px 8px; color: var(--muted); font-size: 12px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 9px; }
+    table { width: 100%; min-width: 740px; border-collapse: collapse; background: #fff; font-size: 12px; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid #edf1f5; text-align: left; white-space: nowrap; }
+    th { position: sticky; top: 0; background: #f5f8fb; color: #53687b; font-size: 10px; letter-spacing: .035em; text-transform: uppercase; }
+    tbody tr:hover { background: #f8fbfe; }
+    td.user-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+    .state-chip { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #eef2f6; color: #42576a; font-size: 10px; font-weight: 700; }
+    .state-chip.attended { background: #e7f3ef; color: #287365; }
+    .state-chip.cancelled { background: #fff0ee; color: #aa4d45; }
+    .state-chip.no-show { background: #fff6e6; color: #986a1c; }
+    .state-chip.pending { background: #edf3fa; color: #3e6591; }
+    .table-empty { padding: 26px 12px; color: var(--muted); text-align: center; }
+    .pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 11px; }
+    .page-label { color: var(--muted); font-size: 11px; }
+    .page-actions { display: flex; gap: 8px; }
+    .page-actions button { height: 34px; }
+    footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 7px 2px; color: #7c8997; font-size: 10px; }
+    .empty { padding: 38px 12px; color: var(--muted); text-align: center; font-size: 12px; }
+    @media (max-width: 1120px) {
+      .shell { padding: 24px; }
+      .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .grid, .grid.equal { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 700px) {
+      .shell { padding: 20px 13px 28px; }
+      header { align-items: flex-start; }
+      .local-badge { font-size: 0; padding: 9px; }
+      .local-badge::before { margin: 0; }
+      .filters { grid-template-columns: 1fr 1fr; padding: 13px; gap: 10px; }
+      .filters button { width: 100%; }
+      .detail-filters { grid-template-columns: 1fr 1fr; }
+      .details { padding: 13px; }
+      .details-head { flex-direction: column; }
+      .filter-meta { align-items: flex-start; flex-direction: column; gap: 2px; }
+      .kpis { grid-template-columns: 1fr 1fr; gap: 9px; }
+      .kpi { min-height: 105px; padding: 13px; }
+      .kpi-value { font-size: 25px; }
+      .grid, .grid.equal { grid-template-columns: 1fr; gap: 10px; }
+      .chart-panel { padding: 14px; }
+      .quality { grid-template-columns: 1fr; gap: 9px; padding: 14px; }
+      .line-chart { height: 205px; }
+    }
+    @media print {
+      body { background: #fff; }
+      .shell { max-width: none; padding: 0; }
+      .filters button { display: none; }
+      .panel { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="eyebrow">Análisis operativo</p>
+        <h1>Agendamiento de citas</h1>
+        <p class="lede">Indicadores y detalle por fecha de registro y usuario que registra.</p>
+      </div>
+      <span class="local-badge">Procesamiento local</span>
+    </header>
+
+    <section class="panel filters" aria-label="Filtros del tablero">
+      <div class="filter"><label for="fromMonth">Desde</label><select id="fromMonth"></select></div>
+      <div class="filter"><label for="toMonth">Hasta</label><select id="toMonth"></select></div>
+      <div class="filter"><label for="stateFilter">Estado de la cita</label><select id="stateFilter"></select></div>
+      <div class="filter"><label for="specialtyFilter">Especialidad</label><select id="specialtyFilter"></select></div>
+      <div class="filter"><label for="routeFilter">Vía de solicitud</label><select id="routeFilter"></select></div>
+      <button id="resetFilters" type="button">Limpiar filtros</button>
+    </section>
+
+    <div class="filter-meta">
+      <span id="periodLabel"></span>
+      <span><strong id="recordCount"></strong> registros incluidos</span>
+    </div>
+
+    <section class="kpis" aria-label="Indicadores principales">
+      <article class="panel kpi"><div class="kpi-top"><span>Total de citas</span><i class="kpi-dot"></i></div><div class="kpi-value" id="totalKpi">—</div><div class="kpi-caption" id="totalCaption">Registros del periodo filtrado</div></article>
+      <article class="panel kpi"><div class="kpi-top"><span>Atendidas</span><i class="kpi-dot"></i></div><div class="kpi-value" id="attendedKpi">—</div><div class="kpi-caption" id="attendedCaption">—</div></article>
+      <article class="panel kpi"><div class="kpi-top"><span>Canceladas</span><i class="kpi-dot"></i></div><div class="kpi-value" id="cancelledKpi">—</div><div class="kpi-caption" id="cancelledCaption">—</div></article>
+      <article class="panel kpi"><div class="kpi-top"><span>Inasistidas</span><i class="kpi-dot"></i></div><div class="kpi-value" id="noShowKpi">—</div><div class="kpi-caption" id="noShowCaption">—</div></article>
+    </section>
+
+    <section class="grid">
+      <article class="panel chart-panel">
+        <div class="chart-head"><div><h2>Volumen mensual</h2><p class="chart-subtitle">Según fecha de asignación de la cita</p></div><span class="chart-total" id="trendTotal"></span></div>
+        <div id="trendChart"></div>
+      </article>
+      <article class="panel chart-panel">
+        <div class="chart-head"><div><h2>Distribución por estado</h2><p class="chart-subtitle">Número de registros por estado</p></div></div>
+        <div class="bars" id="statusChart"></div>
+      </article>
+    </section>
+
+    <section class="grid equal">
+      <article class="panel chart-panel">
+        <div class="chart-head"><div><h2>Citas por especialidad</h2><p class="chart-subtitle">Incluye los registros sin especialidad informada</p></div></div>
+        <div class="bars" id="specialtyChart"></div>
+      </article>
+      <article class="panel chart-panel">
+        <div class="chart-head"><div><h2>Vía de solicitud</h2><p class="chart-subtitle">Canal usado para solicitar la cita</p></div></div>
+        <div class="bars" id="routeChart"></div>
+      </article>
+    </section>
+
+    <section class="panel quality" aria-label="Calidad de los datos">
+      <div><h2>Completitud del reporte</h2><p>Los registros incompletos siguen incluidos en el total cuando corresponde.</p></div>
+      <div class="quality-metrics" id="qualityMetrics"></div>
+    </section>
+
+    <section class="panel details" aria-label="Detalle de registros de citas">
+      <div class="details-head">
+        <div><h2>Registro de citas</h2><p>Detalle del Excel con usuario registrador y fecha de registro. No se muestran datos de identificación del paciente.</p></div>
+        <button id="exportDetails" type="button">Descargar para Excel</button>
+      </div>
+      <div class="detail-filters">
+        <div class="filter"><label for="registrationFrom">Registro desde</label><input id="registrationFrom" type="date"></div>
+        <div class="filter"><label for="registrationTo">Registro hasta</label><input id="registrationTo" type="date"></div>
+        <div class="filter"><label for="registeringUserFilter">Usuario que registra</label><select id="registeringUserFilter"></select></div>
+        <button id="clearDetailFilters" type="button">Limpiar detalle</button>
+      </div>
+      <div class="detail-count" id="detailCount" aria-live="polite"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha de registro</th><th>Usuario que registra</th><th>Fecha de asignación</th><th>Estado</th><th>Especialidad</th></tr></thead>
+          <tbody id="detailsBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="page-label" id="pageLabel"></span>
+        <div class="page-actions"><button id="previousPage" type="button">Anterior</button><button id="nextPage" type="button">Siguiente</button></div>
+      </div>
+    </section>
+
+    <footer>
+      <span>El detalle muestra fecha, usuario registrador y datos operativos; se excluyen nombres y documentos de pacientes.</span>
+      <span>Fecha de tendencia: asignación de cita</span>
+    </footer>
+  </main>
+
+  <script src="data.js"></script>
+  <script>
+    (() => {
+      const data = window.CITAS_DATA;
+      if (!data || !Array.isArray(data.groups) || !Array.isArray(data.records)) {
+        document.querySelector("main").innerHTML = '<section class="panel empty">No se pudo cargar el conjunto de citas.</section>';
+        return;
+      }
+      const fmt = new Intl.NumberFormat("es-CO");
+      const pct = new Intl.NumberFormat("es-CO", { style: "percent", maximumFractionDigits: 1 });
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      const colors = {
+        "Atendida": "#388779", "Cancelada": "#d16e65", "Inasistida": "#d39b42",
+        "Pendiente": "#4d79aa", "Trasladada": "#8271a7", "Inatendida": "#648499",
+        "Multa Cancelada": "#8c7773", "Sin dato": "#aab5c0"
+      };
+      const monthNames = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+      const monthLabel = (value) => {
+        const [year, month] = value.split("-").map(Number);
+        return `${monthNames[month - 1]} ${year}`;
+      };
+      const byCount = (map) => [...map.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "es"));
+      const aggregate = (rows, field) => {
+        const result = new Map();
+        for (const row of rows) result.set(row[field], (result.get(row[field]) ?? 0) + row.count);
+        return byCount(result);
+      };
+      const addOptions = (select, values, allLabel, formatter = (v) => v) => {
+        select.innerHTML = "";
+        const all = document.createElement("option");
+        all.value = "";
+        all.textContent = allLabel;
+        select.appendChild(all);
+        for (const value of values) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = formatter(value);
+          select.appendChild(option);
+        }
+      };
+      const months = [...new Set(data.groups.map((r) => r.month).filter((m) => m !== "Sin fecha"))].sort();
+      const states = [...new Set(data.groups.map((r) => r.status))].sort((a, b) => a.localeCompare(b, "es"));
+      const specialties = [...new Set(data.groups.map((r) => r.specialty))].sort((a, b) => a.localeCompare(b, "es"));
+      const routes = [...new Set(data.groups.map((r) => r.requestRoute))].sort((a, b) => a.localeCompare(b, "es"));
+      addOptions(document.querySelector("#fromMonth"), months, "Todos los meses", monthLabel);
+      addOptions(document.querySelector("#toMonth"), months, "Todos los meses", monthLabel);
+      addOptions(document.querySelector("#stateFilter"), states, "Todos los estados");
+      addOptions(document.querySelector("#specialtyFilter"), specialties, "Todas las especialidades");
+      addOptions(document.querySelector("#routeFilter"), routes, "Todas las vías");
+      const users = [...new Set(data.records.map((row) => row.registeringUser))].sort((a, b) => a.localeCompare(b, "es"));
+      addOptions(document.querySelector("#registeringUserFilter"), users, "Todos los usuarios");
+      const pageSize = 25;
+      let detailPage = 0;
+      let currentDetails = [];
+      const displayDate = (value) => {
+        if (!value || value === "Sin fecha") return value || "Sin fecha";
+        const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}${match[4]}` : String(value);
+      };
+      const stateClass = (value) => ({ "Atendida": "attended", "Cancelada": "cancelled", "Inasistida": "no-show", "Pendiente": "pending" }[value] ?? "");
+
+      const renderBars = (targetId, items, colorFor = () => "#285d91") => {
+        const target = document.getElementById(targetId);
+        if (!items.length || !items.some((item) => item.count > 0)) {
+          target.innerHTML = '<div class="empty">Sin registros para la combinación seleccionada.</div>';
+          return;
+        }
+        const max = Math.max(...items.map((i) => i.count), 1);
+        target.innerHTML = items.map((item) => {
+          const width = Math.max(item.count > 0 ? 1 : 0, item.count / max * 100);
+          const safeLabel = String(item.label).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+          const color = colorFor(item.label);
+          return `<div class="bar-row"><span class="bar-label" title="${safeLabel}">${safeLabel}</span><div class="bar-track" role="img" aria-label="${safeLabel}: ${fmt.format(item.count)}"><div class="bar-fill" style="width:${width}%;background:${color}"></div></div><span class="bar-number">${fmt.format(item.count)}</span></div>`;
+        }).join("");
+      };
+
+      const renderTrend = (rows) => {
+        const target = document.getElementById("trendChart");
+        const monthTotals = new Map();
+        for (const row of rows) if (row.month !== "Sin fecha") monthTotals.set(row.month, (monthTotals.get(row.month) ?? 0) + row.count);
+        const items = [...monthTotals.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+        const total = items.reduce((sum, item) => sum + item[1], 0);
+        document.getElementById("trendTotal").textContent = `${fmt.format(total)} con fecha`;
+        if (!items.length) {
+          target.innerHTML = '<div class="empty">Sin fechas asignadas para el filtro seleccionado.</div>';
+          return;
+        }
+        const W = 680, H = 220, left = 48, right = 12, top = 17, bottom = 35;
+        const plotW = W - left - right, plotH = H - top - bottom;
+        const max = Math.max(...items.map((x) => x[1]), 1);
+        const yMax = Math.ceil(max / 100) * 100 || 100;
+        const x = (i) => items.length === 1 ? left + plotW / 2 : left + i * plotW / (items.length - 1);
+        const y = (v) => top + plotH - v / yMax * plotH;
+        const points = items.map((item, i) => `${x(i)},${y(item[1])}`).join(" ");
+        const area = `${left},${top + plotH} ${points} ${left + plotW},${top + plotH}`;
+        const gridLevels = [0, Math.round(yMax / 2), yMax];
+        const grid = gridLevels.map((level) => `<line class="line-grid" x1="${left}" y1="${y(level)}" x2="${W - right}" y2="${y(level)}"></line><text class="line-axis" x="${left - 8}" y="${y(level) + 3}" text-anchor="end">${fmt.format(level)}</text>`).join("");
+        const labels = items.map((item, i) => `<text class="line-axis" x="${x(i)}" y="${H - 9}" text-anchor="middle">${monthLabel(item[0])}</text>`).join("");
+        const circles = items.map((item, i) => `<circle class="line-point" cx="${x(i)}" cy="${y(item[1])}" r="4"><title>${monthLabel(item[0])}: ${fmt.format(item[1])}</title></circle>`).join("");
+        target.innerHTML = `<svg class="line-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Tendencia mensual de citas asignadas"><polygon class="line-area" points="${area}"></polygon>${grid}<polyline class="line-path" points="${points}"></polyline>${circles}${labels}</svg>`;
+      };
+
+      const render = () => {
+        const from = document.querySelector("#fromMonth").value;
+        const to = document.querySelector("#toMonth").value;
+        const state = document.querySelector("#stateFilter").value;
+        const specialty = document.querySelector("#specialtyFilter").value;
+        const route = document.querySelector("#routeFilter").value;
+        const rows = data.groups.filter((row) =>
+          (!from || row.month !== "Sin fecha" && row.month >= from) &&
+          (!to || row.month !== "Sin fecha" && row.month <= to) &&
+          (!state || row.status === state) &&
+          (!specialty || row.specialty === specialty) &&
+          (!route || row.requestRoute === route)
+        );
+        const registrationFrom = document.getElementById("registrationFrom").value;
+        const registrationTo = document.getElementById("registrationTo").value;
+        const registeringUser = document.getElementById("registeringUserFilter").value;
+        currentDetails = data.records.filter((row) => {
+          const assignmentMonth = row.assignedDate === "Sin fecha" ? "Sin fecha" : row.assignedDate.slice(0, 7);
+          return (!from || assignmentMonth !== "Sin fecha" && assignmentMonth >= from) &&
+            (!to || assignmentMonth !== "Sin fecha" && assignmentMonth <= to) &&
+            (!state || row.status === state) &&
+            (!specialty || row.specialty === specialty) &&
+            (!route || row.requestRoute === route) &&
+            (!registrationFrom || row.registrationDate !== "Sin fecha" && row.registrationDate.slice(0, 10) >= registrationFrom) &&
+            (!registrationTo || row.registrationDate !== "Sin fecha" && row.registrationDate.slice(0, 10) <= registrationTo) &&
+            (!registeringUser || row.registeringUser === registeringUser);
+        }).sort((a, b) => b.registrationDate.localeCompare(a.registrationDate) || a.registeringUser.localeCompare(b.registeringUser, "es"));
+        detailPage = Math.min(detailPage, Math.max(0, Math.ceil(currentDetails.length / pageSize) - 1));
+        const total = rows.reduce((sum, row) => sum + row.count, 0);
+        const statuses = new Map(aggregate(rows, "status").map((item) => [item.label, item.count]));
+        const attended = statuses.get("Atendida") ?? 0;
+        const cancelled = statuses.get("Cancelada") ?? 0;
+        const noShow = statuses.get("Inasistida") ?? 0;
+        document.getElementById("recordCount").textContent = fmt.format(total);
+        document.getElementById("totalKpi").textContent = fmt.format(total);
+        document.getElementById("attendedKpi").textContent = fmt.format(attended);
+        document.getElementById("cancelledKpi").textContent = fmt.format(cancelled);
+        document.getElementById("noShowKpi").textContent = fmt.format(noShow);
+        document.getElementById("attendedCaption").textContent = `${pct.format(total ? attended / total : 0)} del filtro`;
+        document.getElementById("cancelledCaption").textContent = `${pct.format(total ? cancelled / total : 0)} del filtro`;
+        document.getElementById("noShowCaption").textContent = `${pct.format(total ? noShow / total : 0)} del filtro`;
+        const fromText = from ? monthLabel(from) : (data.dateRange.from ? monthLabel(data.dateRange.from) : "inicio disponible");
+        const toText = to ? monthLabel(to) : (data.dateRange.to ? monthLabel(data.dateRange.to) : "fin disponible");
+        document.getElementById("periodLabel").textContent = `Periodo de asignación: ${fromText} a ${toText}`;
+        renderTrend(rows);
+        renderBars("statusChart", aggregate(rows, "status"), (label) => colors[label] ?? "#aab5c0");
+        renderBars("specialtyChart", aggregate(rows, "specialty"));
+        renderBars("routeChart", aggregate(rows, "requestRoute"), (label) => label === "Sin dato" ? "#aab5c0" : "#4d86a0");
+        renderDetails();
+      };
+
+      const renderDetails = () => {
+        const tbody = document.getElementById("detailsBody");
+        const start = detailPage * pageSize;
+        const pageRows = currentDetails.slice(start, start + pageSize);
+        document.getElementById("detailCount").textContent = `${fmt.format(currentDetails.length)} registros coinciden con los filtros.`;
+        const totalPages = Math.max(1, Math.ceil(currentDetails.length / pageSize));
+        document.getElementById("pageLabel").textContent = currentDetails.length ? `Página ${detailPage + 1} de ${totalPages}` : "Sin páginas para mostrar";
+        document.getElementById("previousPage").disabled = detailPage === 0;
+        document.getElementById("nextPage").disabled = detailPage >= totalPages - 1;
+        if (!pageRows.length) {
+          tbody.innerHTML = '<tr><td class="table-empty" colspan="5">No hay registros con estos filtros.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = pageRows.map((row) => `<tr><td>${escapeHtml(displayDate(row.registrationDate))}</td><td class="user-cell" title="${escapeHtml(row.registeringUser)}">${escapeHtml(row.registeringUser)}</td><td>${escapeHtml(displayDate(row.assignedDate))}</td><td><span class="state-chip ${stateClass(row.status)}">${escapeHtml(row.status)}</span></td><td>${escapeHtml(row.specialty)}</td></tr>`).join("");
+      };
+
+      const exportCsv = () => {
+        const columns = ["Fecha de registro", "Usuario que registra", "Fecha de asignación", "Estado", "Especialidad"];
+        const csvCell = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+        const rows = currentDetails.map((row) => [row.registrationDate, row.registeringUser, row.assignedDate, row.status, row.specialty]);
+        const csv = "\uFEFF" + [columns, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        link.download = "citas_fecha_registro_usuario.csv";
+        link.click();
+        URL.revokeObjectURL(link.href);
+      };
+
+      for (const id of ["fromMonth", "toMonth", "stateFilter", "specialtyFilter", "routeFilter"]) {
+        document.getElementById(id).addEventListener("change", () => { detailPage = 0; render(); });
+      }
+      document.getElementById("resetFilters").addEventListener("click", () => {
+        for (const id of ["fromMonth", "toMonth", "stateFilter", "specialtyFilter", "routeFilter", "registrationFrom", "registrationTo", "registeringUserFilter"]) document.getElementById(id).value = "";
+        detailPage = 0;
+        render();
+      });
+      for (const id of ["registrationFrom", "registrationTo", "registeringUserFilter"]) {
+        document.getElementById(id).addEventListener("change", () => { detailPage = 0; render(); });
+      }
+      document.getElementById("clearDetailFilters").addEventListener("click", () => {
+        for (const id of ["registrationFrom", "registrationTo", "registeringUserFilter"]) document.getElementById(id).value = "";
+        detailPage = 0;
+        render();
+      });
+      document.getElementById("previousPage").addEventListener("click", () => { detailPage = Math.max(0, detailPage - 1); renderDetails(); });
+      document.getElementById("nextPage").addEventListener("click", () => { detailPage += 1; renderDetails(); });
+      document.getElementById("exportDetails").addEventListener("click", exportCsv);
+
+      const specialtyMissingPct = data.totalRows ? data.missing.specialty / data.totalRows : 0;
+      const qualityMetrics = [
+        [`${fmt.format(data.missing.specialty)} sin especialidad`, `${pct.format(specialtyMissingPct)} del reporte`],
+        [`${fmt.format(data.missing.assignedDate)} sin fecha de asignación`, "No aparecen en la tendencia mensual"],
+        [`${fmt.format(data.missing.registrationDate)} sin fecha de registro`, "Se incluyen como “Sin fecha”"],
+        [`${fmt.format(data.missing.registeringUser)} sin usuario registrador`, "Se incluyen como “Sin dato”"],
+        [`${fmt.format(data.missing.status)} sin estado`, "Conservados como “Sin dato”"],
+      ];
+      document.getElementById("qualityMetrics").innerHTML = qualityMetrics.map(([title, detail]) => `<span class="quality-chip"><strong>${title}</strong><br>${detail}</span>`).join("");
+      render();
+    })();
+  </script>
+</body>
+</html>
