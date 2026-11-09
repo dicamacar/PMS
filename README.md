@@ -1,14 +1,24 @@
-# PMS
+# PMS — tablero de agendamiento
 
-## Despliegue estático en Render
+El sitio estático está en `outputs/dist/`:
 
-El repositorio incluye `render.yaml` para crear el tablero como un sitio estático en Render.
+- `outputs/dist/index.html`: interfaz del tablero.
+- `outputs/dist/data.js`: datos que carga la interfaz.
 
-1. En Render, selecciona **New + → Blueprint**.
-2. Conecta la cuenta `dicamacar` y el repositorio `dicamacar/PMS`.
-3. Selecciona la rama `main` y confirma el Blueprint `render.yaml`.
-4. Revisa los detalles del servicio `pms-tablero-agendamiento` y selecciona **Apply**.
+El resto de los Excel, scripts y vistas previas permanece en `outputs/`; Render publica únicamente `dist/`.
 
-La carpeta publicada es `outputs/01a16a48-5490-7a73-bc55-755f757c3f53/interface/dist`. No requiere instalación ni compilación; el build command solo confirma que los archivos estáticos ya están listos. Render asignará una URL `onrender.com` y podrá volver a desplegar cada vez que se actualice `main`.
+## Configuración del Static Site en Render
 
-**Acceso a los datos:** el tablero carga el archivo `data.js` con registros de citas, usuarios que las registraron y fechas. Un sitio estático de Render queda disponible por URL pública; las cabeceras de caché incluidas no restringen el acceso. Antes de aplicar el Blueprint, confirma que esa audiencia está autorizada o prepara una versión anonimizada del tablero.
+Conecta el repositorio `dicamacar/PMS`, rama `main`, y configura el servicio así:
+
+| Campo | Valor |
+| --- | --- |
+| Root Directory | `outputs` |
+| Build Command | `echo "Static assets already built"` |
+| Publish Directory | `dist` |
+
+No ejecutes `npm install` ni `npm run build`: el HTML y JavaScript ya están preparados y no existe un `package.json` en `outputs/`. Si usas `render.yaml` como Blueprint, sus valores corresponden a estos mismos campos.
+
+## Datos y acceso
+
+El archivo `outputs/dist/data.js` contiene registros de citas, usuario que registra y fechas. Un Static Site se sirve mediante una URL pública; `Cache-Control: no-store` reduce el almacenamiento en caché, pero no restringe el acceso. Publica estos datos solo si la audiencia está autorizada.

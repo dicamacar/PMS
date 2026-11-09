@@ -3,8 +3,9 @@ services:
     name: pms-tablero-agendamiento
     runtime: static
     branch: main
+    rootDir: outputs
     buildCommand: 'echo "Static assets already built"'
-    staticPublishPath: ./outputs/01a16a48-5490-7a73-bc55-755f757c3f53/interface/dist
+    staticPublishPath: ./dist
     headers:
       - path: /*
         name: Cache-Control
