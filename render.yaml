@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: pms-tablero-agendamiento
+    runtime: static
+    branch: main
+    buildCommand: "true"
+    staticPublishPath: ./outputs/01a16a48-5490-7a73-bc55-755f757c3f53/interface/dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-store
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
